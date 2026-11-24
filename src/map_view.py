@@ -3,7 +3,7 @@ from bisect import bisect_right
 import streamlit as st
 
 from .components import context, map_table, ribbon, section, title
-from .config import DIMS, ROOT, SCALE, area, fmt, indicator
+from .config import DIMS, PALETTE, ROOT, SCALE, area, fmt, indicator
 from .filters import select_filter
 from .profiles import indicator_profile
 
@@ -15,6 +15,8 @@ map_widget = st.components.v2.component(
     js=(assets / "map.js").read_text(encoding="utf-8"),
 )
 
+AREA_MODE = "Warna daerah"
+
 
 def set_focus(names):
     ident = st.session_state.get("atlas", {}).get("picked")
@@ -25,11 +27,13 @@ def set_focus(names):
 def metric_values(data, scope):
     family = st.segmented_control(
         "Metrik peta",
-        ["AMPI", "Dimensi", "Indikator"],
+        ["AMPI", "Dimensi", "Indikator", "Daerah"],
         default="AMPI",
         required=True,
         key="jenis_peta",
     )
+    if family == "Daerah":
+        return AREA_MODE, scope.all.set_index("ID_Wilayah").Skor_AMPI
     if family == "Dimensi":
         metric = st.selectbox("Dimensi IKPS", DIMS, key="peta_dimensi")
         scores = data["Skor_Dimensi"]
@@ -58,16 +62,30 @@ def metric_values(data, scope):
 
 
 def atlas(scope, paths, name, values):
+    by_area = name == AREA_MODE
+    label = "Skor AMPI" if by_area else name
     ids = set(scope.group.ID_Wilayah)
     focus = scope.focus.ID_Wilayah if scope.focus is not None else None
     legend = list(zip(["0–<65", "65–<75", "75–<85", "85–<95", "95–100"], SCALE))
     if len(ids) < len(scope.all):
         legend.append(("Di luar kelompok", "#D3D9D2"))
+    if by_area:
+        legend = [("Setiap daerah berwarna berbeda", PALETTE[1])]
+        if len(ids) < len(scope.all):
+            legend.append(("Di luar kelompok", "#D3D9D2"))
+    # urutan warna: alfabet nama daerah, supaya daerah sebelah-menyebelah
+    # (mis. Kediri kab/kota) cenderung beda warna
+    order = {
+        i: n for n, i in enumerate(scope.all.sort_values("KabKota").ID_Wilayah)
+    }
     rows = []
     for r in scope.all.itertuples():
         value = values.at[r.ID_Wilayah]
         active = r.ID_Wilayah in ids
-        color = SCALE[bisect_right([65, 75, 85, 95], value)]
+        if by_area:
+            color = PALETTE[order[r.ID_Wilayah] % len(PALETTE)]
+        else:
+            color = SCALE[bisect_right([65, 75, 85, 95], value)]
         priorities = ", ".join(
             indicator(i.strip()) for i in r.Prioritas_Intervensi.split(",")
         )
@@ -76,10 +94,10 @@ def atlas(scope, paths, name, values):
                 id=r.ID_Wilayah,
                 path=paths[r.ID_Wilayah],
                 name=area(r.KabKota),
-                metric=f"{name}: {fmt(value)} poin",
+                metric=f"{label}: {fmt(value)} poin",
                 detail=(
                     r.Klaster
-                    if name == "Skor AMPI"
+                    if label == "Skor AMPI"
                     else f"AMPI {fmt(r.Skor_AMPI)} poin · {r.Klaster}"
                 ),
                 priority="Prioritas: " + priorities,
@@ -94,7 +112,7 @@ def atlas(scope, paths, name, values):
         data={
             "rows": sorted(rows, key=lambda r: r["focus"]),
             "legend": legend,
-            "title": f"{name} (poin)",
+            "title": "Warna tiap daerah" if by_area else f"{name} (poin)",
         },
         on_picked_change=lambda: set_focus(names),
     )
