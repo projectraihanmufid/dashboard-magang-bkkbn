@@ -1,5 +1,6 @@
 import base64
 from functools import partial
+from pathlib import Path
 from struct import error as StructError
 from zipfile import BadZipFile
 import shapefile
@@ -45,17 +46,26 @@ except (
     )
 
 LOGOS = [
-    ("jatim.png", "Provinsi Jawa Timur"),
-    ("bkkbn.png", "BKKBN"),
-    ("upnvj.png", "UPN Veteran Jawa Timur"),
+    (("jatim",), "Provinsi Jawa Timur"),
+    (("bkkbn",), "BKKBN"),
+    (("upnvjt", "upnvj", "upn"), "UPN Veteran Jawa Timur"),
 ]
+LOGO_EXT = {".png", ".svg", ".jpg", ".jpeg", ".webp"}
+
+
+def find_logo(stems):
+    folder = ROOT / "assets" / "logo"
+    if not folder.exists():
+        return None
+    for p in sorted(folder.iterdir()):
+        if p.stem.lower() in stems and p.suffix.lower() in LOGO_EXT:
+            return p
+    return None
 
 
 @st.cache_resource
-def logo_uri(name):
-    p = ROOT / "assets" / "logo" / name
-    if not p.exists():
-        return None
+def encode_logo(path, mtime):
+    p = Path(path)
     ext = p.suffix.lower().lstrip(".")
     mime = {"svg": "image/svg+xml", "jpg": "image/jpeg"}.get(ext, f"image/{ext}")
     return f"data:{mime};base64,{base64.b64encode(p.read_bytes()).decode()}"
@@ -63,9 +73,10 @@ def logo_uri(name):
 
 def brand_html():
     imgs = ""
-    for fname, alt in LOGOS:
-        uri = logo_uri(fname)
-        if uri:
+    for stems, alt in LOGOS:
+        p = find_logo(stems)
+        if p:
+            uri = encode_logo(str(p), p.stat().st_mtime)
             imgs += f'<img src="{uri}" alt="Logo {alt}">'
     return (
         '<div class="brand-lock">'
