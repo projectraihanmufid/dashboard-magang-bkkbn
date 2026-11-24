@@ -19,21 +19,8 @@ NAVY, TEAL, OCHRE, RED = "#23364D", "#267F7A", "#AB742F", "#AF5544"
 LINE = "#D9DDD5"
 COLORS = ["#195E5C", "#59958A", "#B6B4A0", "#CA9562", "#A64E40"]
 SCALE = ["#F1E1C9", "#C3C9AF", "#8AB3A2", "#508E85", "#185D5C"]
-# Warna beda untuk tiap daerah (mode peta "Daerah")
-PALETTE = [
-    "#E76F51",
-    "#2A9D8F",
-    "#E9C46A",
-    "#457B9D",
-    "#8E5BA8",
-    "#6A994E",
-    "#F4A261",
-    "#D1495B",
-    "#00798C",
-    "#B5838D",
-    "#7A9E3B",
-    "#3D5A80",
-]
+# Skala warna peta (rendah -> tinggi), 6 kelas
+MAP_SCALE = ["#C8553D", "#EE964B", "#F4D35E", "#9BC17A", "#3FA796", "#2B5C8A"]
 
 
 def fmt(x, places=2):
