@@ -1,3 +1,4 @@
+import base64
 from functools import partial
 from struct import error as StructError
 from zipfile import BadZipFile
@@ -43,11 +44,40 @@ except (
         f"Periksa SHP, SHX, DBF, PRJ WGS 84 dan CPG dalam assets/geometri. {exc}"
     )
 
+LOGOS = [
+    ("jatim.png", "Provinsi Jawa Timur"),
+    ("bkkbn.png", "BKKBN"),
+    ("upnvj.png", "UPN Veteran Jawa Timur"),
+]
+
+
+@st.cache_resource
+def logo_uri(name):
+    p = ROOT / "assets" / "logo" / name
+    if not p.exists():
+        return None
+    ext = p.suffix.lower().lstrip(".")
+    mime = {"svg": "image/svg+xml", "jpg": "image/jpeg"}.get(ext, f"image/{ext}")
+    return f"data:{mime};base64,{base64.b64encode(p.read_bytes()).decode()}"
+
+
+def brand_html():
+    imgs = ""
+    for fname, alt in LOGOS:
+        uri = logo_uri(fname)
+        if uri:
+            imgs += f'<img src="{uri}" alt="Logo {alt}">'
+    return (
+        '<div class="brand-lock">'
+        f'<div class="logo-row">{imgs}</div>'
+        "<div><strong>IKPS Jatim</strong><small>Pemantauan wilayah</small></div>"
+        "</div>"
+    )
+
+
 with st.sidebar:
     with st.container(key="brand"):
-        st.html(
-            '<div class="brand-lock"><span class="brand-icon" aria-hidden="true"><i></i><i></i><i></i></span><div><strong>IKPS Jatim</strong><small>Pemantauan wilayah</small></div></div>'
-        )
+        st.html(brand_html())
 
 routes = [
     ("Ringkasan eksekutif", "space_dashboard", "ringkasan", overview.render),
